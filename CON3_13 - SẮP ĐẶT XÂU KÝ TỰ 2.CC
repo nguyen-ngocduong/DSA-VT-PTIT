@@ -12,7 +12,7 @@ int main () {
             max_fre = max(max_fre, value.second);
         }
         int len = s.size();
-        if(max_fre - (len - max_fre)/(d-1) <= 1){
+        if(max_fre < len /(d-1)){
             cout << "1" << endl;
         }
         else{
