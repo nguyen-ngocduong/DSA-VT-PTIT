@@ -1,47 +1,67 @@
 #include<bits/stdc++.h>
 using namespace std;
-int n,k,a[1005], ok;
-void next(){
-    int i = n; 
-    while(i > 0 && a[i] == 1){
-        a[i] = 0;
+int n,k,ok,a[105];
+vector<string>ans;
+void init(){
+    cin>>n>>k;
+    ans.clear();
+    memset(a,0,sizeof(a));
+    ok=1;
+}
+void res(){
+    string s="";
+    for(int i=1;i<=n;i++){
+        if(a[i]==0){
+            s+="A ";
+        }
+        else{
+            s+="B ";
+        }
+    }
+    ans.push_back(s);
+}
+void sinh(){
+    int i=n;
+    while(i>0&&a[i]==1){
+        a[i]=0;
         i--;
     }
-    if(i == 0){
-        ok = 0;
+    if(i<=0){
+        ok=0;
     }
-    else a[i] = 1;
+    else{
+        a[i]=1;
+    }
 }
 bool check(){
-    int cnt = 0, res = 0;
-    for(int i = 1; i<= n; i++){
-        if(a[i] == 0) {
-            cnt++;
+    int d=0,cnt=0;
+    for(int i=1;i<=n;i++){
+        if(a[i]==0){
+            d++;
+            if(d>k){
+                return 0;
+            }
+            if(d==k){
+                cnt++;
+            }
         }
-        else {
-            cnt = 0;
+        else{
+            d=0;
         }
-        if(cnt > k) return false;
-        if(cnt == k) res++;
     }
-    return res == 1;
+    return cnt==1;
 }
 int main(){
-    int t; t = 1;
-    while(t--) {
-        cin >> n >> k;
-        memset(a,0,sizeof(a));
-        ok =1;
-        while(ok){
-            if(check()){
-                for(int i = 1; i<=n; i++){
-                    if(a[i] == 0) cout << "A";
-                    else cout << "B";
-                }
-                cout << endl;
-            }
-            next();
+    init();
+    while(ok){
+        if(check()){
+            res();
         }
+        sinh();
+    }
+    cout<<ans.size()<<"\n";
+    for(string x:ans){
+        cout<<x<<"\n";
     }
     return 0;
 }
