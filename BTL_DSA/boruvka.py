@@ -8,24 +8,25 @@ class GraphDrawer:
         self.root.title("Boruvka Simulation")
         self.canvas = tk.Canvas(root, width=800, height=600, bg="white")
         self.canvas.pack()
- 
+
         # Label to show MST total weight
-        self.mst_label = tk.Label(root, text="", font=("Arial", 12))
-        self.mst_label.pack()
+        # Remove the existing MST label below the canvas
+        # self.mst_label = tk.Label(root, text="", font=("Arial", 12))
+        # self.mst_label.pack()
+        self.mst_label = None
+        self.mst_frame_rect = None
+        self.mst_frame_label = None
 
-        # Button frame
-        self.button_frame = tk.Frame(root)
-        self.button_frame.pack()
+        # Running state
+        self.running = False
 
-        # Buttons
-        self.run_button = tk.Button(self.button_frame, text="Run", command=self.run_boruvka)
-        self.run_button.pack(side=tk.LEFT, padx=5)
-        
-        self.restart_button = tk.Button(self.button_frame, text="Khởi động lại", command=self.restart_program)
-        self.restart_button.pack(side=tk.LEFT, padx=5)
-        
-        self.exit_button = tk.Button(self.button_frame, text="Thoát", command=self.exit_program)
-        self.exit_button.pack(side=tk.LEFT, padx=5)
+        # Button to run Boruvka simulation
+        self.run_button = tk.Button(root, text="Run", command=self.run_boruvka)
+        self.run_button.pack()
+
+        # Button to refresh graph
+        self.refresh_button = tk.Button(root, text="Refresh", command=self.refresh_graph)
+        self.refresh_button.pack()
 
         self.vertices = {}  # vertex_id: (x, y, circle_id, label_id)
         self.edges = {}     # (v1, v2): (line_id, entry_widget, entry_window)
@@ -42,6 +43,8 @@ class GraphDrawer:
 
     def left_click(self, event):
         # Check if clicked on a vertex
+        if self.running:
+            return
         vertex = self.find_vertex(event.x, event.y)
         if vertex is None:
             # Clicked empty space: create new vertex
@@ -51,6 +54,8 @@ class GraphDrawer:
             self.dragging_vertex = vertex
 
     def left_drag(self, event):
+        if self.running:
+            return
         if self.dragging_vertex is not None:
             # Draw temporary line from dragging_vertex to current mouse position
             x0, y0, _, _ = self.vertices[self.dragging_vertex]
@@ -59,6 +64,8 @@ class GraphDrawer:
             self.temp_line = self.canvas.create_line(x0, y0, event.x, event.y, fill="gray", dash=(4, 2))
 
     def left_release(self, event):
+        if self.running:
+            return
         if self.dragging_vertex is not None:
             # Check if released on another vertex
             target_vertex = self.find_vertex(event.x, event.y)
@@ -72,6 +79,8 @@ class GraphDrawer:
             self.dragging_vertex = None
 
     def right_click(self, event):
+        if self.running:
+            return
         # Check if clicked on vertex
         vertex = self.find_vertex(event.x, event.y)
         if vertex is not None:
@@ -136,6 +145,8 @@ class GraphDrawer:
         mid_y = (start_y + end_y) / 2
         entry = tk.Entry(self.root, width=4, justify='center')
         entry.insert(0, "1")
+        # Add bold border to entry widget
+        entry.config(bd=2, relief='solid')
         entry_window = self.canvas.create_window(mid_x, mid_y, window=entry)
 
         # Bind left click on entry to focus for editing
@@ -194,83 +205,194 @@ class GraphDrawer:
         dist_sq = (px - proj_x)**2 + (py - proj_y)**2
         return dist_sq <= tol*tol
 
+    def refresh_graph(self):
+        if self.running:
+            return
+        # Delete all vertices and their labels
+        for vertex in list(self.vertices.keys()):
+            x, y, circle_id, label_id = self.vertices[vertex]
+            self.canvas.delete(circle_id)
+            self.canvas.delete(label_id)
+        self.vertices.clear()
+
+        # Delete all edges and their widgets
+        for edge in list(self.edges.keys()):
+            line_id, entry, entry_window = self.edges[edge]
+            self.canvas.delete(line_id)
+            self.canvas.delete(entry_window)
+            entry.destroy()
+        self.edges.clear()
+
+        # Delete component frames and labels if any
+        if hasattr(self, 'component_frames'):
+            for rect in self.component_frames:
+                self.canvas.delete(rect)
+            self.component_frames = []
+        if hasattr(self, 'component_labels'):
+            for label in self.component_labels:
+                self.canvas.delete(label)
+            self.component_labels = []
+
+        # Reset vertex count
+        self.vertex_count = 0
+
     def run_boruvka(self):
-        # Clear previous MST highlights
-        for (v1, v2), (line_id, entry, entry_window) in self.edges.items():
-            self.canvas.itemconfig(line_id, fill="black")
+        if not self.running:
+            self.running = True
+            self.run_button.config(text="Stop")
+            self.refresh_button.pack_forget()
 
-        # Build graph adjacency list with weights
-        graph = {v: [] for v in self.vertices}
-        for (v1, v2), (line_id, entry, entry_window) in self.edges.items():
-            try:
-                weight = float(entry.get())
-            except ValueError:
-                messagebox.showerror("Lỗi", f"Trọng số cạnh giữa đỉnh {v1} và {v2} không hợp lệ.")
-                return
-            graph[v1].append((v2, weight))
-            graph[v2].append((v1, weight))
+            # Disable all edge weight entries to prevent editing while running
+            for (v1, v2), (line_id, entry, entry_window) in self.edges.items():
+                entry.config(state='disabled')
 
-        # Boruvka's algorithm implementation
-        parent = {v: v for v in self.vertices}
+            # Clear previous MST highlights
+            for (v1, v2), (line_id, entry, entry_window) in self.edges.items():
+                self.canvas.itemconfig(line_id, fill="black")
 
-        def find(u):
-            while parent[u] != u:
-                parent[u] = parent[parent[u]]
-                u = parent[u]
-            return u
+            # Build graph adjacency list with weights
+            graph = {v: [] for v in self.vertices}
+            for (v1, v2), (line_id, entry, entry_window) in self.edges.items():
+                try:
+                    weight = float(entry.get())
+                except ValueError:
+                    messagebox.showerror("Error", f"Invalid edge weight between vertex {v1} and {v2}.")
+                    self.running = False
+                    self.run_button.config(text="Run")
+                    self.refresh_button.pack()
+                    # Re-enable all edge weight entries on error
+                    for (vv1, vv2), (ll_id, ent, ent_win) in self.edges.items():
+                        ent.config(state='normal')
+                    return
+                graph[v1].append((v2, weight))
+                graph[v2].append((v1, weight))
 
-        def union(u, v):
-            ru, rv = find(u), find(v)
-            if ru != rv:
-                parent[rv] = ru
-                return True
-            return False
-        num_components = len(self.vertices)
-        mst_edges = []
-        total_weight = 0
+            # Find connected components using DFS
+            visited = set()
+            components = []
 
-        while num_components > 1:
-            cheapest = {}
-            for u in self.vertices:
-                cheapest[u] = None
+            def dfs(u, comp):
+                visited.add(u)
+                comp.append(u)
+                for v, _ in graph[u]:
+                    if v not in visited:
+                        dfs(v, comp)
 
-            for (u, v), (line_id, entry, entry_window) in self.edges.items():
-                ru, rv = find(u), find(v)
-                if ru != rv:
-                    try:
-                        w = float(entry.get())
-                    except ValueError:
-                        messagebox.showerror("Lỗi", f"Trọng số cạnh giữa đỉnh {u} và {v} không hợp lệ.")
-                        return
-                    if cheapest[ru] is None or cheapest[ru][2] > w:
-                        cheapest[ru] = (u, v, w)
-                    if cheapest[rv] is None or cheapest[rv][2] > w:
-                        cheapest[rv] = (u, v, w)
+            for vertex in self.vertices:
+                if vertex not in visited:
+                    comp = []
+                    dfs(vertex, comp)
+                    components.append(comp)
 
-            for u in self.vertices:
-                if cheapest[u] is not None:
-                    u1, v1, w1 = cheapest[u]
-                    if union(u1, v1):
-                        mst_edges.append((u1, v1))
-                        total_weight += w1
-                        num_components -= 1
+            # For each component, run Boruvka's MST and draw frame and label
+            self.component_frames = []
+            self.component_labels = []
 
-        # Highlight MST edges in red
-        for (u, v) in mst_edges:
-            edge_key = tuple(sorted((u, v)))
-            line_id, entry, entry_window = self.edges[edge_key]
-            self.canvas.itemconfig(line_id, fill="red")
+            for comp in components:
+                # Boruvka's algorithm for this component
+                parent = {v: v for v in comp}
 
-        # Show total weight
-        self.mst_label.config(text=f"Tổng trọng số cây khung nhỏ nhất: {total_weight}")
-    def exit_program(self):
-        self.root.destroy()
+                def find(u):
+                    while parent[u] != u:
+                        parent[u] = parent[parent[u]]
+                        u = parent[u]
+                    return u
 
-    def restart_program(self):
-        self.root.destroy()
-        root = tk.Tk()
-        app = GraphDrawer(root)
-        root.mainloop()
+                def union(u, v):
+                    ru, rv = find(u), find(v)
+                    if ru != rv:
+                        parent[rv] = ru
+                        return True
+                    return False
+
+                num_components = len(comp)
+                mst_edges = []
+                total_weight = 0
+
+                while num_components > 1:
+                    cheapest = {u: None for u in comp}
+
+                    for (u, v), (line_id, entry, entry_window) in self.edges.items():
+                        if u in comp and v in comp:
+                            ru, rv = find(u), find(v)
+                            if ru != rv:
+                                try:
+                                    w = float(entry.get())
+                                except ValueError:
+                                    messagebox.showerror("Error", f"Invalid edge weight between vertex {u} and {v}.")
+                                    self.running = False
+                                    self.run_button.config(text="Run")
+                                    self.refresh_button.pack()
+                                    # Re-enable all edge weight entries on error
+                                    for (vv1, vv2), (ll_id, ent, ent_win) in self.edges.items():
+                                        ent.config(state='normal')
+                                    return
+                                if cheapest[ru] is None or cheapest[ru][2] > w:
+                                    cheapest[ru] = (u, v, w)
+                                if cheapest[rv] is None or cheapest[rv][2] > w:
+                                    cheapest[rv] = (u, v, w)
+
+                    union_happened = False
+                    for u in comp:
+                        if cheapest[u] is not None:
+                            u1, v1, w1 = cheapest[u]
+                            if union(u1, v1):
+                                mst_edges.append((u1, v1))
+                                total_weight += w1
+                                num_components -= 1
+                                union_happened = True
+                    if not union_happened:
+                        break
+
+                # Highlight MST edges in red for this component
+                for (u, v) in mst_edges:
+                    edge_key = tuple(sorted((u, v)))
+                    line_id, entry, entry_window = self.edges[edge_key]
+                    self.canvas.itemconfig(line_id, fill="red")
+
+                # Calculate bounding box of vertices in this component
+                xs = [self.vertices[v][0] for v in comp]
+                ys = [self.vertices[v][1] for v in comp]
+                padding = 20
+                min_x, max_x = min(xs) - padding, max(xs) + padding
+                min_y, max_y = min(ys) - padding, max(ys) + padding
+
+                # Draw blue rectangle frame for this component
+                rect = self.canvas.create_rectangle(
+                    min_x, min_y, max_x, max_y,
+                    outline="blue", width=2
+                )
+                self.component_frames.append(rect)
+
+                # Draw total weight label on top of the frame
+                label_text = f"{total_weight:.2f}"
+                label = self.canvas.create_text(
+                    (min_x + max_x) / 2, min_y - 10,
+                    text=label_text,
+                    font=("Arial", 12, "bold"),
+                    fill="blue"
+                )
+                self.component_labels.append(label)
+        else:
+            # Stop Boruvka mode: reset UI and enable editing
+            self.running = False
+            self.run_button.config(text="Run")
+            self.refresh_button.pack()
+
+            # Remove all component frames and labels
+            if hasattr(self, 'component_frames'):
+                for rect in self.component_frames:
+                    self.canvas.delete(rect)
+                self.component_frames = []
+            if hasattr(self, 'component_labels'):
+                for label in self.component_labels:
+                    self.canvas.delete(label)
+                self.component_labels = []
+
+            # Reset all edges to black
+            for (v1, v2), (line_id, entry, entry_window) in self.edges.items():
+                self.canvas.itemconfig(line_id, fill="black")
+                entry.config(state='normal')
 
 if __name__ == "__main__":
     root = tk.Tk()
