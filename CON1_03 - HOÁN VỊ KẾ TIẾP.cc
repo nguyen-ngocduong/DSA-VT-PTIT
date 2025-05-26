@@ -6,9 +6,9 @@ void next(){
     while(i > 0 && a[i] > a[i+1]){
         i--;
     }
-    if(i == 0){
-        for(int j = 1; j<=n; j++){
-            cout << j << " ";
+    if(i == 0) {
+        for(int j = n; j>=1; j--){
+            cout << a[j] << " ";
         }
     }
     else{
