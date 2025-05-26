@@ -1,67 +1,56 @@
 #include<bits/stdc++.h>
 using namespace std;
-int n,k,ok,a[105];
-vector<string>ans;
+int n,k,ok;
+vector<string> ans;
+char a[1005];
 void init(){
-    cin>>n>>k;
+    cin >> n >> k;
     ans.clear();
-    memset(a,0,sizeof(a));
-    ok=1;
+    memset(a,'A', sizeof(a));
+    ok = 1;
 }
-void res(){
-    string s="";
-    for(int i=1;i<=n;i++){
-        if(a[i]==0){
-            s+="A ";
-        }
-        else{
-            s+="B ";
-        }
-    }
-    ans.push_back(s);
-}
-void sinh(){
-    int i=n;
-    while(i>0&&a[i]==1){
-        a[i]=0;
+void next(){
+    int i = n;
+    while(i > 0 && a[i] == 'B'){
+        a[i] = 'A';
         i--;
     }
-    if(i<=0){
-        ok=0;
+    if(i == 0){
+        ok = 0;
     }
-    else{
-        a[i]=1;
-    }
+    else a[i] = 'B';
 }
 bool check(){
-    int d=0,cnt=0;
-    for(int i=1;i<=n;i++){
-        if(a[i]==0){
-            d++;
-            if(d>k){
-                return 0;
-            }
-            if(d==k){
-                cnt++;
-            }
+    int res = 0, cauhinh = 0;
+    for(int i = 1; i<= n; i++){
+        if(a[i] == 'A'){
+            res++;
+            if(res == k) cauhinh++;
+            if(res>k) return 0;
         }
-        else{
-            d=0;
-        }
+        else res = 0;
     }
-    return cnt==1;
+    return cauhinh == 1;
 }
 int main(){
     init();
     while(ok){
         if(check()){
-            res();
+            string s = "";
+            for(int i = 1; i<=n; i++){
+                s += a[i];
+                s += " ";
+            }
+            ans.push_back(s);
         }
-        sinh();
+        next();
     }
-    cout<<ans.size()<<"\n";
-    for(string x:ans){
-        cout<<x<<"\n";
+    cout << ans.size() << endl;
+    for(auto x : ans){
+        for(char c : x){
+            cout << c;
+        }
+        cout << endl;
     }
     return 0;
 }
