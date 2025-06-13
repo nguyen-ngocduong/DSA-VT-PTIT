@@ -15,7 +15,7 @@ int calculate(int a, int b, char op){
         }
         return a/b;
     default:
-        return 0;;
+        return 0;
     }
 }
 int main(){
