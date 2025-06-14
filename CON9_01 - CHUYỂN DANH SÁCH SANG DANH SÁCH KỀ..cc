@@ -2,7 +2,7 @@
 using namespace std;
 vector<int> adj[1001];
 vector<int> ke[1001];
-void main1(){
+void main1(){ // danh sach canh
     int t; cin >> t;
     while(t--){
         for(int i = 0; i<1001; i++) ke[i].clear();
@@ -24,7 +24,7 @@ void main1(){
     }
 }
 
-void main2(){
+void main2(){ // ma tran ke
     int n;
     cin>>n;
     int a[n+1][n+1];
